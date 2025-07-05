@@ -39,32 +39,77 @@ app.post("/signup", async (req, res) => {
     }
 });
 
-app.post("/signin", (req, res) => {
+app.post("/signin", async (req, res) => {
     const body = req.body;
-    const { success } = SigninSchema.safeParse(body);
+    const { success, data: parsedData } = SigninSchema.safeParse(body);
 
     if (!success) {
         res.status(400).json("invalid signin schema");
         return;
     }
-    //db logic
 
-    const id = 1;
+    try {
+        const user = await prisma.user.findUnique({
+            where: {
+                email: parsedData.email,
+            },
+        });
 
-    const token = jwt.sign({ id }, JWT_SECRET);
+        if (!user) {
+            res.status(404).json({
+                message: "User not found.",
+            });
+            return;
+        }
 
-    res.json({
-        token,
-    });
+        const passwordValid = bcrypt.compareSync(
+            parsedData.password,
+            user.password
+        );
+        if (passwordValid) {
+            const token = jwt.sign({ id: user.id }, JWT_SECRET);
+
+            res.json({
+                token,
+            });
+        } else {
+            res.status(401).json({
+                message: "Invalid credentials",
+            });
+        }
+    } catch {
+        res.status(500).json({
+            message: "Internal Server Error",
+        });
+    }
 });
 
-app.post("/room", middleware, (req, res) => {
+app.post("/room", middleware, async (req, res) => {
     const body = req.body;
-    const { success } = JoinRoomSchema.safeParse(body);
+    const { success, data: parsedData } = JoinRoomSchema.safeParse(body);
 
     if (!success) {
         res.status(400).json("invalid join room schema");
         return;
+    }
+
+    try {
+        const room = await prisma.room.create({
+            data: {
+                slug: parsedData.name,
+                adminId: req.userId!!,
+            },
+        });
+
+        if (room.id) {
+            res.json({
+                roomId: room.id,
+            });
+        }
+    } catch {
+        res.status(400).json({
+            message: "Room with that name already exists",
+        });
     }
 });
 

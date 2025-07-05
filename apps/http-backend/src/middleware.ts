@@ -7,15 +7,16 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as {
-            userId: string;
+            id: string;
         };
 
         if (decoded) {
-            req.userId = decoded.userId;
+            // console.log("from middleware:  " + decoded.id);
+            req.userId = decoded.id;
             next();
         }
     } catch {
-        console.log("Invalid jwt token");
+        // console.log("Invalid jwt token");
         res.status(401).json("Invalid token");
     }
 };
